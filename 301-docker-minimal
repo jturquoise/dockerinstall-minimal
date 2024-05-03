@@ -1,0 +1,57 @@
+#!/bin/bash
+# Script to update the server and install essential packages including Docker
+
+# Function to check if a package is installed
+is_installed() {
+    dpkg -s "$1" &> /dev/null
+}
+
+# Function to update system
+system_update() {
+    echo "Updating system packages..."
+    sudo apt-get update -y && sudo apt-get upgrade -y
+}
+
+# Function to install a package
+install_package() {
+    if is_installed "$1"; then
+        echo "$1 is already installed."
+    else
+        echo "$1 is not installed, installing..."
+        sudo apt-get install -y "$1"
+    fi
+}
+
+# Function to add a GPG key
+add_gpg_key() {
+    echo "Adding $2 GPG key..."
+    sudo curl -fsSL "$1" -o /etc/apt/keyrings/$2.asc
+    sudo chmod a+r /etc/apt/keyrings/$2.asc
+}
+
+# Function to add a repo
+add_repo() {
+    echo "Adding $1 repository..."
+    local repo_url="deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/$2.asc] $3 $(. /etc/os-release && echo "$VERSION_CODENAME") stable"
+    echo "$repo_url" | sudo tee /etc/apt/sources.list.d/$2.list > /dev/null
+}
+
+# Main execution starts here
+system_update
+install_package "curl"
+
+# Docker Installation
+add_gpg_key "https://download.docker.com/linux/debian" "docker"
+add_repo "Docker" "docker" "https://download.docker.com/linux/debian"
+system_update
+
+install_package "docker-ce"
+install_package "docker-ce-cli"
+install_package "containerd.io"
+install_package "docker-buildx-plugin"
+install_package "docker-compose-plugin"
+
+# Testing Docker installation
+echo "Testing Docker installation..."
+sudo docker run hello-world
+echo "Installation complete. Dolphin time, baby!"
