@@ -29,7 +29,7 @@
 # - [ ] Test on Ubuntu
 ################################################################################################################
 
-# Script to update the server and install essential packages including Docker and set up Deluge torrent server
+# Script to update the server and install docker
 
 # Function to check if a package is installed
 is_installed() {
@@ -73,120 +73,14 @@ install_docker() {
 
     echo "Docker installation complete."
 }
-# Function to set up Deluge using Docker
-setup_deluge() {
-    echo "Setting up Deluge in Docker..."
-    local compose_file="/srv/torrent-server/docker-compose.yml"
-    mkdir -p "$(dirname "$compose_file")"
-    cat << EOF > "$compose_file"
----
-version: '3.3'
-services:
-  deluge:
-    image: lscr.io/linuxserver/deluge:latest
-    container_name: deluge
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
-      - DELUGE_LOGLEVEL=error #optional
-    volumes:
-      - /path/to/deluge/config:/config
-      - /path/to/your/downloads:/downloads
-    ports:
-      - 8112:8112
-      - 6881:6881
-      - 6881:6881/udp
-      - 58846:58846 #optional
-    restart: unless-stopped
-EOF
-    echo "Deluge setup complete."
-}
-
-# Function to install and configure OpenVPN
-# Function to install OpenVPN and configure directories
-install_openvpn() {
-    install_package "openvpn"
-
-    # Ask user for the number of default directories
-    echo "Would you like to create some default directories for OpenVPN? (0-5)"
-    read -r num_dirs
-    if [[ "$num_dirs" =~ ^[0-5]$ ]]; then
-        for (( i = 1; i <= num_dirs; i++ )); do
-            echo "Enter name for server $i:"
-            read -r server_name
-            mkdir -p "/etc/openvpn/client/$server_name"
-            echo "Directory /etc/openvpn/client/$server_name created."
-        done
-    else
-        echo "Invalid number entered. No directories will be created."
-    fi
-
-    # Ask user for the number of secure servers
-    echo "Would you like to add some secure servers? (0-3)"
-    read -r num_secure_dirs
-    if [[ "$num_secure_dirs" =~ ^[0-3]$ ]]; then
-        for (( i = 1; i <= num_secure_dirs; i++ )); do
-            echo "Enter name for secure server $i:"
-            read -r secure_server_name
-            mkdir -p "/etc/openvpn/client/secure/$secure_server_name"
-            echo "Secure directory /etc/openvpn/client/secure/$secure_server_name created."
-        done
-    else
-        echo "Invalid number entered. No secure directories will be created."
-    fi
-
-    # Ask user for the username and password of the VPN
-    echo "Enter the username for the VPN:"
-    read -r vpn_username
-    echo "Enter the password for the VPN:"
-    read -r vpn_password
-
-    # Create the OpenVPN authentication file 
-    echo "$vpn_username" > /etc/openvpn/auth.txt
-    echo "$vpn_password" >> /etc/openvpn/auth.txt
-}
-
-# Function to create a utility script in /usr/bin
-create_pubip_script() {
-    local script_path="/usr/bin/pubip"
-
-    # Create the script file
-    cat << 'EOF' > "$script_path"
-#!/bin/bash
-# Check if curl is installed
-if ! command -v curl &> /dev/null
-then
-    echo "Curl is not installed. Please install curl to proceed."
-    exit 1
-fi
-curl https://ipinfo.io/ip ; echo
-EOF
-
-    # Make the script executable
-    chmod +x "$script_path"
-    echo "The ipinfo script has been installed in /usr/bin/pubip."
-}
-
 
 # Main execution starts here
 system_update
-install_package "curl"
 
 # Docker Installation
 install_docker
-
-# Setting up Deluge using Docker
-setup_deluge
 
 # Testing Docker installation
 echo "Testing Docker installation..."
 sudo docker run hello-world
 echo "Installation complete. Dolphin time, baby!"
-
-# Installing OpenVPN
-echo "Installing OpenVPN..."
-install_openvpn
-
-# Pubip Installation
-create_pubip_script
